@@ -167,6 +167,8 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_PROMOTION_SERVER_NAME:-mspromotion}
       SERVER_PORT: ${MS_PROMOTION_PORT:-8085}
+      SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: "false"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HOSTNAME: mspromotion.phungvip.io.vn
       SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_PROMOTION_DISCOVERY_ADDRESS:-mspromotion.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
@@ -193,6 +195,8 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_ROUTE_SERVER_NAME:-msroute}
       SERVER_PORT: ${MS_ROUTE_PORT:-8082}
+      SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: "false"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HOSTNAME: msroute.phungvip.io.vn
       SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_ROUTE_DISCOVERY_ADDRESS:-msroute.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
@@ -219,6 +223,8 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_USER_SERVER_NAME:-msuser}
       SERVER_PORT: ${MS_USER_PORT:-8083}
+      SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: "false"
+      SPRING_CLOUD_CONSUL_DISCOVERY_HOSTNAME: msuser.phungvip.io.vn
       SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_USER_DISCOVERY_ADDRESS:-msuser.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
