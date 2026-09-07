@@ -1,0 +1,88 @@
+# ==============================================================================
+# HƯỚNG DẪN KHỞI CHẠY VPS-MICROSERVICES VỚI CLOUDFLARE TUNNEL (FILE CONFIG.YML)
+# ==============================================================================
+
+# Cách 1: Tự động chạy toàn bộ Bước 1 -> Bước 4 chỉ bằng 1 lệnh:
+#    ./config/cloudflared/setup-tunnel.sh
+#
+# Cách 2: Thực hiện thủ công:
+# 1. Cài đặt cloudflared CLI (nếu chưa có) và đăng nhập tài khoản Cloudflare:
+#    cloudflared tunnel login
+#    (Lệnh này sẽ mở trình duyệt để bạn chọn domain phungvip.io.vn)
+# 
+# 2. Tạo Tunnel mới (đặt tên ví dụ: ridehub-ms-tunnel):
+#    cloudflared tunnel create ridehub-ms-tunnel
+#    -> Lệnh này sẽ hiển thị Tunnel ID (UUID) và sinh file ~/.cloudflared/<TUNNEL_ID>.json
+# 
+# 3. Copy file credentials vào thư mục cloudflared:
+#    cp ~/.cloudflared/<TUNNEL_ID>.json ./config/cloudflared/credentials.json
+#    -> Mở file ./config/cloudflared/config.yml và điền TUNNEL_ID của bạn vào dòng "tunnel: YOUR_TUNNEL_ID"
+
+# 4. Định tuyến DNS trên Cloudflare trỏ về Tunnel (chạy 1 lần):
+#    cloudflared tunnel route dns ridehub-ms-tunnel "*.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "phungvip.io.vn"
+#    Hoặc trỏ các subdomain cụ thể:
+#    cloudflared tunnel route dns ridehub-ms-tunnel "apigateway.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "gateway.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "msroute.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "msuser.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "mspromotion.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "msbooking.phungvip.io.vn"
+#    cloudflared tunnel route dns ridehub-ms-tunnel "webhook.phungvip.io.vn"
+
+# 5. Chuẩn bị file biến môi trường:
+#    cp .env.example .env
+#    nano .env
+
+# ==============================================================================
+# HƯỚNG DẪN BUILD & TRIỂN KHAI TỰ ĐỘNG HOÀN TOÀN (KHUYÊN DÙNG)
+# ==============================================================================
+
+# Cách 1: TỰ ĐỘNG TOÀN DIỆN TỪ A-Z (Pull git -> Sinh config -> Build Jib -> Up/Restart Docker)
+#    cd infra/vps-microservices
+#    ./config/scripts/auto-deploy.sh
+#
+# Các tùy chọn nâng cao:
+#    ./config/scripts/auto-deploy.sh -s ms_user,ms_route # Chỉ build và deploy các service được chỉ định
+#    ./config/scripts/auto-deploy.sh --all               # Ép build toàn bộ services
+#    ./config/scripts/auto-deploy.sh --skip-pull         # Không pull git (dùng code hiện tại)
+#    ./config/scripts/auto-deploy.sh --skip-build        # Không build image (chỉ cập nhật config và up)
+#    ./config/scripts/auto-deploy.sh --config-only       # Chỉ quét service và sinh lại toàn bộ file cấu hình
+#
+# Chạy Watcher đón Webhook tự động từ GitHub Actions:
+#    ./config/scripts/deploy-watcher.sh
+#    (Hoặc chạy ngầm: nohup ./config/scripts/deploy-watcher.sh > /tmp/deploy-watcher.log 2>&1 &)
+#
+# Hoặc chỉ chạy script sinh cấu hình:
+#    ./config/scripts/generate-configs.sh
+
+# ==============================================================================
+# HƯỚNG DẪN TRIGGER TỪ XA QUA WEBHOOK (CI/CD)
+# ==============================================================================
+# Endpoint: POST https://webhook.phungvip.io.vn/hooks/deploy
+# Header:   X-Admin-Token: f4security (hoặc query ?token=f4security)
+# Tham số:  service=ms_user (hoặc service=ms_user,ms_route hoặc không truyền để auto-detect)
+#
+# Ví dụ gọi thủ công:
+#   curl -X POST "https://webhook.phungvip.io.vn/hooks/deploy?token=f4security&service=ms_user"
+#   curl -X POST "https://webhook.phungvip.io.vn/hooks/deploy?token=f4security&service=gateway"
+
+
+# ==============================================================================
+# HƯỚNG DẪN THỦ CÔNG (TRUYỀN THỐNG)
+# ==============================================================================
+
+# 6. Build Docker images cho toàn bộ microservices (chạy từ thư mục gốc backend/):
+#    cd ../../backend
+#    for dir in ms_* gateway; do (cd "$dir" && ./mvnw -Pprod verify jib:dockerBuild -DskipTests -T 1); done
+
+# 7. Khởi chạy toàn bộ microservices + Nginx + Cloudflared:
+#    cd ../infra/vps-microservices
+#    docker compose up -d
+
+# 8. Kiểm tra trạng thái:
+#    docker compose ps
+#    docker compose logs -f cloudflared
+#    docker compose logs -f nginx
+#    docker compose logs -f gateway
+

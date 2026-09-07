@@ -1,0 +1,14 @@
+[Unit]
+Description=RideHub Deploy Watcher Daemon
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=phungvip
+WorkingDirectory=/home/phungvip/ridehub/infra/vps-microservices
+ExecStart=/home/phungvip/ridehub/infra/vps-microservices/config/scripts/deploy-watcher.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

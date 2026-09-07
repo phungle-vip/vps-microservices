@@ -32,5 +32,39 @@
                 }
             ]
         }
+    },
+    {
+        "id": "deploy",
+        "execute-command": "/scripts/deploy.sh",
+        "pass-arguments-to-command": [
+            {
+                "source": "url",
+                "name": "service"
+            }
+        ],
+        "trigger-rule": {
+            "or": [
+                {
+                    "match": {
+                        "type": "value",
+                        "value": "f4security",
+                        "parameter": {
+                            "source": "header",
+                            "name": "X-Admin-Token"
+                        }
+                    }
+                },
+                {
+                    "match": {
+                        "type": "value",
+                        "value": "f4security",
+                        "parameter": {
+                            "source": "url",
+                            "name": "token"
+                        }
+                    }
+                }
+            ]
+        }
     }
 ]

@@ -3,8 +3,8 @@ version: '3.8'
 # ===== Networks & Volumes =====
 networks:
   ticket_net:
-    external: true
-    name: ridehub-network
+    name: ridehub-ms-network
+    driver: bridge
 
 # ===== Common anchors =====
 x-mysql-env: &mysql_env
@@ -40,6 +40,23 @@ x-common-variables: &common-variables
   JAVA_OPTIONS: ${JAVA_OPTIONS:-"-Xmx512m -Xms256m"}
   F4_PASSWORD: ${APP_F4_PASS}
   DOMAIN: ${DOMAIN}
+  REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_PASSWORD: ${APP_F4_PASS}
+  KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka.phungvip.io.vn:9093}
+  ELASTICSEARCH_URIS: ${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
+
+  SPRING_DATASOURCE_USERNAME: root
+  SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-${APP_F4_PASS}}
+  SPRING_LIQUIBASE_USER: root
+  SPRING_LIQUIBASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-${APP_F4_PASS}}
+
+x-common-extra-hosts: &common-extra-hosts
+  - "host.docker.internal:host-gateway"
+  - "kafka.phungvip.io.vn:host-gateway"
+  - "redis.phungvip.io.vn:host-gateway"
+  - "phungvip.io.vn:host-gateway"
+
 services:
   # ===== Auto-heal (restart unhealthy containers) =====
   autoheal:
@@ -53,21 +70,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # ===== MySQLs =====
-  ms_route-mysql:
-    <<: *mysql_common
-    environment:
-      <<: *mysql_env
-      MYSQL_DATABASE: ms_route
-    ports: [ "127.0.0.1:${MS_ROUTE_DB_PORT:-3307}:3306" ]
-
-  ms_user-mysql:
-    <<: *mysql_common
-    environment:
-      <<: *mysql_env
-      MYSQL_DATABASE: ms_user
-    ports: [ "127.0.0.1:${MS_USER_DB_PORT:-3308}:3306" ]
-
+  # ===== MySQL Databases =====
   ms_booking-mysql:
     <<: *mysql_common
     environment:
@@ -82,16 +85,30 @@ services:
       MYSQL_DATABASE: ms_promotion
     ports: [ "127.0.0.1:${MS_PROMOTION_DB_PORT:-3310}:3306" ]
 
-  # ===== Microservices & Nginx =====
+  ms_route-mysql:
+    <<: *mysql_common
+    environment:
+      <<: *mysql_env
+      MYSQL_DATABASE: ms_route
+    ports: [ "127.0.0.1:${MS_ROUTE_DB_PORT:-3307}:3306" ]
+
+  ms_user-mysql:
+    <<: *mysql_common
+    environment:
+      <<: *mysql_env
+      MYSQL_DATABASE: ms_user
+    ports: [ "127.0.0.1:${MS_USER_DB_PORT:-3308}:3306" ]
+
+  # ===== Microservices & Gateway =====
   gateway:
     image: gateway
     restart: unless-stopped
     networks: [ ticket_net ]
+    extra_hosts: *common-extra-hosts
     environment:
       <<: *common-variables
       SERVER_NAME: ${GATEWAY_SERVER_NAME:-apigateway}
       SERVER_PORT: ${GATEWAY_PORT:-8080}
-
     ports: [ "${GATEWAY_PORT:-8080}:8080" ]
     healthcheck:
       test: [ "CMD", "curl", "-fsS", "http://localhost:${GATEWAY_PORT:-8080}/management/health" ]
@@ -103,88 +120,16 @@ services:
     labels:
       - autoheal=true
     depends_on:
-      # gateway waits only for its DB deps (if any). If none, keep MySQL deps if needed by other init.
-      ms_route-mysql: { condition: service_healthy }
-      ms_user-mysql: { condition: service_healthy }
       ms_booking-mysql: { condition: service_healthy }
       ms_promotion-mysql: { condition: service_healthy }
-
-  ms_user:
-    image: ms_user
-    restart: unless-stopped
-    networks: [ ticket_net ]
-    environment:
-      <<: *common-variables
-      SERVER_NAME: ${MS_USER_SERVER_NAME:-msuser}
-      SERVER_PORT: ${MS_USER_PORT:-8083}
-      SPRING_DATASOURCE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
-      SPRING_LIQUIBASE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
-    ports:
-      - "${MS_USER_PORT:-8083}:8083"
-    healthcheck:
-      test: [ "CMD", "curl", "-fsS", "http://localhost:${MS_USER_PORT:-8083}/management/health" ]
-      interval: 5s
-      timeout: 5s
-      retries: 40
-    volumes:
-      - ./config/microservices/:/app/config/:ro
-    labels: [ "autoheal=true" ]
-    depends_on:
-      ms_user-mysql: { condition: service_healthy }
-      gateway: { condition: service_healthy } # chain: after gateway
-
-  ms_route:
-    image: ms_route
-    restart: unless-stopped
-    networks: [ ticket_net ]
-    environment:
-      <<: *common-variables
-      SERVER_NAME: ${MS_ROUTE_SERVER_NAME:-msroute}
-      SERVER_PORT: ${MS_ROUTE_PORT:-8082}
-      SPRING_DATASOURCE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
-      SPRING_LIQUIBASE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
-    ports:
-      - "${MS_ROUTE_PORT:-8082}:8082"
-    healthcheck:
-      test: [ "CMD", "curl", "-fsS", "http://localhost:${MS_ROUTE_PORT:-8082}/management/health" ]
-      interval: 5s
-      timeout: 5s
-      retries: 40
-    volumes:
-      - ./config/microservices/:/app/config/:ro
-    labels: [ "autoheal=true" ]
-    depends_on:
       ms_route-mysql: { condition: service_healthy }
-      ms_user: { condition: service_healthy } # chain: after user
-
-  ms_promotion:
-    image: ms_promotion
-    restart: unless-stopped
-    networks: [ ticket_net ]
-    environment:
-      <<: *common-variables
-      SERVER_NAME: ${MS_PROMOTION_SERVER_NAME:-mspromotion}
-      SERVER_PORT: ${MS_PROMOTION_PORT:-8085}
-      SPRING_DATASOURCE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
-      SPRING_LIQUIBASE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
-    ports:
-      - "${MS_PROMOTION_PORT:-8085}:8085"
-    healthcheck:
-      test: [ "CMD", "curl", "-fsS", "http://localhost:${MS_PROMOTION_PORT:-8085}/management/health" ]
-      interval: 5s
-      timeout: 5s
-      retries: 40
-    volumes:
-      - ./config/microservices/:/app/config/:ro
-    labels: [ "autoheal=true" ]
-    depends_on:
-      ms_promotion-mysql: { condition: service_healthy }
-      ms_route: { condition: service_healthy } # chain: after route
+      ms_user-mysql: { condition: service_healthy }
 
   ms_booking:
     image: ms_booking
     restart: unless-stopped
     networks: [ ticket_net ]
+    extra_hosts: *common-extra-hosts
     environment:
       <<: *common-variables
       SERVER_NAME: ${MS_BOOKING_SERVER_NAME:-msbooking}
@@ -203,46 +148,163 @@ services:
     labels: [ "autoheal=true" ]
     depends_on:
       ms_booking-mysql: { condition: service_healthy }
-      ms_promotion: { condition: service_healthy } # chain: after promotion
+      gateway: { condition: service_healthy } # chain after gateway
 
-  # nginx:
-  #   image: nginx:latest
-  #   container_name: nginx
-  #   restart: unless-stopped
-  #   networks: [ ticket_net ]
-  #   ports: [ "80:80", "443:443" ]
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./nginx/conf.d:/etc/nginx/conf.d:ro
-  #     - ./nginx/letsencrypt:/etc/letsencrypt
-  #     - ./nginx/www:/var/www/html
-  #     - ./nginx/log:/var/log/nginx
-  #   depends_on:
-  #     gateway: { condition: service_healthy }
-  #     # ms_booking:  { condition: service_healthy }          # last in chain
-  #   labels:
-  #     - autoheal=true
+  ms_promotion:
+    image: ms_promotion
+    restart: unless-stopped
+    networks: [ ticket_net ]
+    extra_hosts: *common-extra-hosts
+    environment:
+      <<: *common-variables
+      SERVER_NAME: ${MS_PROMOTION_SERVER_NAME:-mspromotion}
+      SERVER_PORT: ${MS_PROMOTION_PORT:-8085}
+      SPRING_DATASOURCE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
+      SPRING_LIQUIBASE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
+    ports:
+      - "${MS_PROMOTION_PORT:-8085}:8085"
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:${MS_PROMOTION_PORT:-8085}/management/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - ./config/microservices/:/app/config/:ro
+    labels: [ "autoheal=true" ]
+    depends_on:
+      ms_promotion-mysql: { condition: service_healthy }
+      ms_booking: { condition: service_healthy } # chain after ms_booking
+
+  ms_route:
+    image: ms_route
+    restart: unless-stopped
+    networks: [ ticket_net ]
+    extra_hosts: *common-extra-hosts
+    environment:
+      <<: *common-variables
+      SERVER_NAME: ${MS_ROUTE_SERVER_NAME:-msroute}
+      SERVER_PORT: ${MS_ROUTE_PORT:-8082}
+      SPRING_DATASOURCE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
+      SPRING_LIQUIBASE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
+    ports:
+      - "${MS_ROUTE_PORT:-8082}:8082"
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:${MS_ROUTE_PORT:-8082}/management/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - ./config/microservices/:/app/config/:ro
+    labels: [ "autoheal=true" ]
+    depends_on:
+      ms_route-mysql: { condition: service_healthy }
+      ms_promotion: { condition: service_healthy } # chain after ms_promotion
+
+  ms_user:
+    image: ms_user
+    restart: unless-stopped
+    networks: [ ticket_net ]
+    extra_hosts: *common-extra-hosts
+    environment:
+      <<: *common-variables
+      SERVER_NAME: ${MS_USER_SERVER_NAME:-msuser}
+      SERVER_PORT: ${MS_USER_PORT:-8083}
+      SPRING_DATASOURCE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
+      SPRING_LIQUIBASE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
+    ports:
+      - "${MS_USER_PORT:-8083}:8083"
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:${MS_USER_PORT:-8083}/management/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - ./config/microservices/:/app/config/:ro
+    labels: [ "autoheal=true" ]
+    depends_on:
+      ms_user-mysql: { condition: service_healthy }
+      ms_route: { condition: service_healthy } # chain after ms_route
+
+  # ===== Reverse Proxy & Supporting Services =====
+  nginx:
+    image: nginx:alpine
+    container_name: ms-nginx
+    restart: unless-stopped
+    networks: [ ticket_net ]
+    ports:
+      - "127.0.0.1:8088:80" # localhost access; public traffic routes via cloudflared tunnel
+    env_file:
+      - path: ./config/services.env
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - DOMAIN=${DOMAIN:-phungvip.io.vn}
+      - GATEWAY_SUBDOMAIN=${GATEWAY_SUBDOMAIN:-gateway}
+      - GATEWAY_ALT_SUBDOMAIN=${GATEWAY_ALT_SUBDOMAIN:-apigateway}
+      - GATEWAY_HOST=${GATEWAY_HOST:-gateway}
+      - GATEWAY_PORT=${GATEWAY_PORT:-8080}
+      - MS_BOOKING_SUBDOMAIN=${MS_BOOKING_SUBDOMAIN:-msbooking}
+      - MS_BOOKING_HOST=${MS_BOOKING_HOST:-ms_booking}
+      - MS_BOOKING_PORT=${MS_BOOKING_PORT:-8084}
+      - MS_PROMOTION_SUBDOMAIN=${MS_PROMOTION_SUBDOMAIN:-mspromotion}
+      - MS_PROMOTION_HOST=${MS_PROMOTION_HOST:-ms_promotion}
+      - MS_PROMOTION_PORT=${MS_PROMOTION_PORT:-8085}
+      - MS_ROUTE_SUBDOMAIN=${MS_ROUTE_SUBDOMAIN:-msroute}
+      - MS_ROUTE_HOST=${MS_ROUTE_HOST:-ms_route}
+      - MS_ROUTE_PORT=${MS_ROUTE_PORT:-8082}
+      - MS_USER_SUBDOMAIN=${MS_USER_SUBDOMAIN:-msuser}
+      - MS_USER_HOST=${MS_USER_HOST:-ms_user}
+      - MS_USER_PORT=${MS_USER_PORT:-8083}
+      - WEBHOOK_SUBDOMAIN=${WEBHOOK_SUBDOMAIN:-webhook}
+      - WEBHOOK_HOST=${WEBHOOK_HOST:-restarter}
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-9000}
+      - NGINX_ENVSUBST_FILTER=^(DOMAIN|GATEWAY_|MS_|WEBHOOK_)
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      gateway: { condition: service_healthy }
+    labels:
+      autoheal: "true"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ms-cloudflared
+    restart: unless-stopped
+    networks: [ ticket_net ]
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
+    volumes:
+      - ./config/cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - nginx
+    labels:
+      autoheal: "true"
 
   docker_api:
     image: tecnativa/docker-socket-proxy:latest
     restart: unless-stopped
     networks: [ ticket_net ]
     environment:
-      CONTAINERS: 1 # Cho phép list containers
-      POST: 1 # Cho phép POST requests
+      CONTAINERS: 1
+      POST: 1
       EXEC: 1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels: [ "autoheal=true" ]
+
   restarter:
-    build: ./webhook # Thay image bằng build
+    build: ./config/webhook
     restart: unless-stopped
     networks: [ ticket_net ]
     environment:
       ADMIN_TOKEN: f4security
     volumes:
-      - ./webhook/hooks.json:/etc/webhook/hooks.json:ro
-      - ./webhook/scripts:/scripts:ro
+      - ./config/webhook/hooks.json:/etc/webhook/hooks.json:ro
+      - ./config/webhook/scripts:/scripts:ro
+      - ./config/webhook/triggers:/triggers
     command: [ "-verbose", "-hooks=/etc/webhook/hooks.json", "-hotreload", "-debug" ]
     depends_on:
       - docker_api
