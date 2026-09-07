@@ -45,6 +45,11 @@ x-common-variables: &common-variables
   REDIS_PASSWORD: ${APP_F4_PASS}
   KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka.phungvip.io.vn:9093}
   ELASTICSEARCH_URIS: ${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
+  SPRING_CLOUD_CONSUL_HOST: ${CONSUL_HOST:-consul.${DOMAIN}}
+  SPRING_CLOUD_CONSUL_PORT: ${CONSUL_PORT:-443}
+  SPRING_CLOUD_CONSUL_SCHEME: ${CONSUL_SCHEME:-https}
+  SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: ${CONSUL_DISCOVERY_PREFER_IP_ADDRESS:-true}
+  SPRING_CLOUD_CONSUL_DISCOVERY_SCHEME: ${CONSUL_DISCOVERY_SCHEME:-https}
 
   SPRING_DATASOURCE_USERNAME: root
   SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-${APP_F4_PASS}}
@@ -109,6 +114,7 @@ services:
       <<: *common-variables
       SERVER_NAME: ${GATEWAY_SERVER_NAME:-apigateway}
       SERVER_PORT: ${GATEWAY_PORT:-8080}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${GATEWAY_DISCOVERY_ADDRESS:-apigateway.${DOMAIN}}
     ports: [ "${GATEWAY_PORT:-8080}:8080" ]
     healthcheck:
       test: [ "CMD", "curl", "-fsS", "http://localhost:${GATEWAY_PORT:-8080}/management/health" ]
@@ -134,6 +140,7 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_BOOKING_SERVER_NAME:-msbooking}
       SERVER_PORT: ${MS_BOOKING_PORT:-8084}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_BOOKING_DISCOVERY_ADDRESS:-msbooking.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_booking-mysql:3306/ms_booking?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_booking-mysql:3306/ms_booking?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
     ports:
@@ -159,6 +166,7 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_PROMOTION_SERVER_NAME:-mspromotion}
       SERVER_PORT: ${MS_PROMOTION_PORT:-8085}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_PROMOTION_DISCOVERY_ADDRESS:-mspromotion.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_promotion-mysql:3306/ms_promotion?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
     ports:
@@ -184,6 +192,7 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_ROUTE_SERVER_NAME:-msroute}
       SERVER_PORT: ${MS_ROUTE_PORT:-8082}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_ROUTE_DISCOVERY_ADDRESS:-msroute.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_route-mysql:3306/ms_route?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
     ports:
@@ -209,6 +218,7 @@ services:
       <<: *common-variables
       SERVER_NAME: ${MS_USER_SERVER_NAME:-msuser}
       SERVER_PORT: ${MS_USER_PORT:-8083}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${MS_USER_DISCOVERY_ADDRESS:-msuser.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://ms_user-mysql:3306/ms_user?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
     ports:
