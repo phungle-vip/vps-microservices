@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    vps: 'vps-microservices'
+    cluster: 'microservices'
+
+remote_write:
+  - url: https://prometheus.phungvip.io.vn/api/v1/write
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 10
+      capacity: 5000
+
+
+scrape_configs:
+  - job_name: 'vps-microservices-cadvisor'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          vps: 'vps-microservices'
+          cluster: 'microservices'
+
+  - job_name: 'spring-boot-microservices'
+    scrape_interval: 10s
+    metrics_path: /management/prometheus
+    static_configs:
+      - targets: ['gateway:8080']
+        labels:
+          application: 'gateway'
+          vps: 'vps-microservices'
+      - targets: ['ms_booking:8084']
+        labels:
+          application: 'msbooking'
+          vps: 'vps-microservices'
+      - targets: ['ms_promotion:8085']
+        labels:
+          application: 'mspromotion'
+          vps: 'vps-microservices'
+      - targets: ['ms_route:8082']
+        labels:
+          application: 'msroute'
+          vps: 'vps-microservices'
+      - targets: ['ms_user:8083']
+        labels:
+          application: 'msuser'
+          vps: 'vps-microservices'

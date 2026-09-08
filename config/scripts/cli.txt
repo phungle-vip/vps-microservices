@@ -60,12 +60,12 @@
 # HƯỚNG DẪN TRIGGER TỪ XA QUA WEBHOOK (CI/CD)
 # ==============================================================================
 # Endpoint: POST https://webhook.phungvip.io.vn/hooks/deploy
-# Header:   X-Admin-Token: f4security (hoặc query ?token=f4security)
+# Header:   X-Admin-Token: <ADMIN_TOKEN> (hoặc query ?token=<ADMIN_TOKEN>)
 # Tham số:  service=ms_user (hoặc service=ms_user,ms_route hoặc không truyền để auto-detect)
 #
 # Ví dụ gọi thủ công:
-#   curl -X POST "https://webhook.phungvip.io.vn/hooks/deploy?token=f4security&service=ms_user"
-#   curl -X POST "https://webhook.phungvip.io.vn/hooks/deploy?token=f4security&service=gateway"
+#   curl -X POST "https://webhook.phungvip.io.vn/hooks/deploy?service=ms_user" -H "X-Admin-Token: <ADMIN_TOKEN>"
+#   curl -X POST "https://webhook.phungvip.io.vn/hooks/deploy?service=gateway" -H "X-Admin-Token: <ADMIN_TOKEN>"
 
 
 # ==============================================================================

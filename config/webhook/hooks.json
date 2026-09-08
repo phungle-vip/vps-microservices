@@ -13,7 +13,7 @@
                 {
                     "match": {
                         "type": "value",
-                        "value": "f4security",
+                        "value": "{{ getenv `ADMIN_TOKEN` }}",
                         "parameter": {
                             "source": "header",
                             "name": "X-Admin-Token"
@@ -23,7 +23,7 @@
                 {
                     "match": {
                         "type": "value",
-                        "value": "f4security",
+                        "value": "{{ getenv `ADMIN_TOKEN` }}",
                         "parameter": {
                             "source": "url",
                             "name": "token"
@@ -47,7 +47,7 @@
                 {
                     "match": {
                         "type": "value",
-                        "value": "f4security",
+                        "value": "{{ getenv `ADMIN_TOKEN` }}",
                         "parameter": {
                             "source": "header",
                             "name": "X-Admin-Token"
@@ -57,7 +57,7 @@
                 {
                     "match": {
                         "type": "value",
-                        "value": "f4security",
+                        "value": "{{ getenv `ADMIN_TOKEN` }}",
                         "parameter": {
                             "source": "url",
                             "name": "token"

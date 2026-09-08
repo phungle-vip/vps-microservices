@@ -44,6 +44,10 @@ fi
 # Nạp file services.env nếu có (chứa cấu hình dynamic service names & subdomains)
 SERVICES_ENV="$MICROSERVICES_DIR/config/services.env"
 if [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/services.env" ]; then
+SERVICES_ENV="$MICROSERVICES_DIR/.generated/services.env"
+if [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/config/services.env" ]; then
+  SERVICES_ENV="$MICROSERVICES_DIR/config/services.env"
+elif [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/services.env" ]; then
   SERVICES_ENV="$MICROSERVICES_DIR/services.env"
 fi
 if [ -f "$SERVICES_ENV" ]; then
@@ -70,7 +74,7 @@ if ! command -v cloudflared >/dev/null 2>&1; then
 fi
 
 # 2. Tạo Tunnel mới hoặc lấy Tunnel ID nếu đã tồn tại
-echo -e "\n${BLUE}[1/4] Kiểm tra / Tạo Tunnel: ${TUNNEL_NAME}...${NC}"
+echo -e "\n${BLUE}[1/5] Kiểm tra / Tạo Tunnel: ${TUNNEL_NAME}...${NC}"
 TUNNEL_ID=""
 
 # Kiểm tra xem tunnel đã tồn tại chưa
@@ -99,21 +103,23 @@ fi
 echo -e "${GREEN}✓ Tunnel ID: ${TUNNEL_ID}${NC}"
 
 # 3. Sao chép file credentials vào cloudflared/credentials.json
-echo -e "\n${BLUE}[2/4] Sao chép file credentials...${NC}"
+echo -e "\n${BLUE}[2/5] Sao chép file credentials...${NC}"
 SOURCE_CREDS="$HOME/.cloudflared/${TUNNEL_ID}.json"
 
-if [ ! -f "$SOURCE_CREDS" ]; then
+if [ -f "$SOURCE_CREDS" ]; then
+  mkdir -p "$CLOUDFLARED_DIR"
+  cp "$SOURCE_CREDS" "$CREDS_TARGET"
+  chmod 644 "$CREDS_TARGET"
+  echo -e "${GREEN}✓ Đã lưu file credentials tại: ${CREDS_TARGET}${NC}"
+elif [ -f "$CREDS_TARGET" ]; then
+  echo -e "${YELLOW}ℹ Sử dụng file credentials hiện có tại: ${CREDS_TARGET}${NC}"
+else
   echo -e "${RED}❌ Không tìm thấy file credentials tại: $SOURCE_CREDS${NC}"
   exit 1
 fi
 
-mkdir -p "$CLOUDFLARED_DIR"
-cp "$SOURCE_CREDS" "$CREDS_TARGET"
-chmod 644 "$CREDS_TARGET"
-echo -e "${GREEN}✓ Đã lưu file credentials tại: ${CREDS_TARGET}${NC}"
-
 # 4. Cập nhật Tunnel ID vào file config.yml
-echo -e "\n${BLUE}[3/4] Cập nhật Tunnel ID vào config.yml...${NC}"
+echo -e "\n${BLUE}[3/5] Cập nhật Tunnel ID vào config.yml...${NC}"
 if [ -f "$CONFIG_FILE" ]; then
   sed -i -E "s/^tunnel: .*/tunnel: ${TUNNEL_ID}/" "$CONFIG_FILE"
   echo -e "${GREEN}✓ Đã cập nhật dòng 'tunnel: ${TUNNEL_ID}' trong ${CONFIG_FILE}${NC}"
@@ -123,18 +129,30 @@ else
 fi
 
 # 5. Định tuyến DNS trên Cloudflare về Tunnel
-echo -e "\n${BLUE}[4/4] Định tuyến DNS các subdomains về Tunnel '${TUNNEL_NAME}'...${NC}"
+echo -e "\n${BLUE}[4/5] Định tuyến DNS các subdomains về Tunnel '${TUNNEL_NAME}'...${NC}"
 
 SUBDOMAINS=(
-  "${GATEWAY_SUBDOMAIN:-gateway}.${DOMAIN}"
-  "${GATEWAY_ALT_SUBDOMAIN:-apigateway}.${DOMAIN}"
-  "${MS_BOOKING_SUBDOMAIN:-msbooking}.${DOMAIN}"
-  "${MS_PROMOTION_SUBDOMAIN:-mspromotion}.${DOMAIN}"
-  "${MS_ROUTE_SUBDOMAIN:-msroute}.${DOMAIN}"
-  "${MS_USER_SUBDOMAIN:-msuser}.${DOMAIN}"
-  "${WEBHOOK_SUBDOMAIN:-webhook}.${DOMAIN}"
   "${DOMAIN}"
+  "${WEBHOOK_SUBDOMAIN:-webhook}.${DOMAIN}"
 )
+
+# Thêm Gateway subdomains nếu có
+if [ -n "${GATEWAY_SUBDOMAIN:-}" ]; then
+  SUBDOMAINS+=("${GATEWAY_SUBDOMAIN}.${DOMAIN}")
+fi
+if [ -n "${GATEWAY_ALT_SUBDOMAIN:-}" ]; then
+  SUBDOMAINS+=("${GATEWAY_ALT_SUBDOMAIN}.${DOMAIN}")
+fi
+
+# Tự động duyệt qua tất cả active microservices
+for svc in ${ACTIVE_SERVICES:-}; do
+  [ "$svc" = "gateway" ] && continue
+  svc_upper="$(echo "$svc" | tr '[:lower:]' '[:upper:]')"
+  clean_name="$(echo "$svc" | tr -d '_')"
+  var="${svc_upper}_SUBDOMAIN"
+  sub="${!var:-$clean_name}"
+  SUBDOMAINS+=("${sub}.${DOMAIN}")
+done
 
 for sub in "${SUBDOMAINS[@]}"; do
   echo -n "-> Trỏ DNS cho [${sub}]... "
@@ -144,6 +162,15 @@ for sub in "${SUBDOMAINS[@]}"; do
     echo -e "${YELLOW}Đã tồn tại hoặc bỏ qua cảnh báo${NC}"
   fi
 done
+
+# 6. Tự động cấu hình Cloudflare Access Bypass IP cho VPS Microservices (để gọi Consul & Vault)
+echo -e "\n${BLUE}[5/5] Cập nhật Cloudflare Access Bypass IP cho VPS Microservices...${NC}"
+BYPASS_SCRIPT="$SCRIPT_DIR/update-access-bypass.sh"
+if [ -f "$BYPASS_SCRIPT" ]; then
+  bash "$BYPASS_SCRIPT" || echo -e "${YELLOW}⚠️ Cập nhật Bypass IP không thành công. Bạn có thể chạy lại: ${BYPASS_SCRIPT}${NC}"
+else
+  echo -e "${YELLOW}ℹ Bỏ qua (không tìm thấy update-access-bypass.sh)${NC}"
+fi
 
 echo -e "\n${GREEN}====================================================================${NC}"
 echo -e "${GREEN}🎉 HOÀN TẤT THIẾT LẬP TUNNEL CHO VPS-MICROSERVICES!${NC}"

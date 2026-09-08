@@ -16,16 +16,16 @@ echo "Listening for webhook events..."
 
 while true; do
   if [ -f "$TRIGGER_FILE" ]; then
-    # Thu thập và gộp các service đang chờ deploy
-    RAW_SERVICES="$(tr '\n' ',' < "$TRIGGER_FILE" | sed 's/,$//' | sed 's/^,//')"
+    # Thu thập và lọc trùng các service đang chờ deploy
+    RAW_SERVICES="$(grep -v '^[[:space:]]*$' "$TRIGGER_FILE" 2>/dev/null | sort -u | paste -sd, - || echo "")"
     rm -f "$TRIGGER_FILE"
 
     echo ""
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 Nhận trigger deploy cho: ${RAW_SERVICES:-all}"
-
-    if [ "$RAW_SERVICES" = "all" ] || [ -z "$RAW_SERVICES" ]; then
+    if echo "$RAW_SERVICES" | grep -qw "all"; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 Nhận trigger deploy cho: all"
       "$SCRIPT_DIR/auto-deploy.sh" || true
-    else
+    elif [ -n "$RAW_SERVICES" ]; then
+      echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🚀 Nhận trigger deploy cho: ${RAW_SERVICES}"
       "$SCRIPT_DIR/auto-deploy.sh" -s "$RAW_SERVICES" || true
     fi
   fi

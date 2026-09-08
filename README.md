@@ -34,12 +34,13 @@ Cụm Microservices kết nối vào mạng `ridehub-network` và tương tác v
 ```
 infra/vps-microservices/
 ├── .env.example                               # File mẫu biến môi trường (copy sang .env)
-├── docker-compose.yml                         # File điều phối Docker Compose (sinh tự động)
+├── docker-compose.yml                         # Cấu hình lõi (Nginx, Tunnel, Webhook, Autoheal) + include
 ├── README.md                                  # Tài liệu kiến trúc & hướng dẫn vận hành
+├── .generated/                                # Thư mục sinh tự động (được gitignore hoàn toàn)
+│   ├── services.env                           # Biến môi trường, port và subdomain động
+│   └── docker-compose.services.yml            # Khối dịch vụ microservices & databases tự sinh
 │
 └── config/                                    # Toàn bộ cấu hình & scripts vận hành
-    ├── services.env                           # Biến môi trường, port và subdomain động
-    │
     ├── scripts/                               # Các script tự động hoá
     │   ├── auto-deploy.sh                     # [MASTER] Script tự động hoá A-Z
     │   ├── generate-configs.sh                # Script quét backend & sinh config
@@ -74,6 +75,7 @@ Chỉ bằng **1 lệnh duy nhất**, hệ thống sẽ:
 2. Tự quét thư mục `backend/` tìm microservices (loại trừ `docker-compose`).
 3. Mò vào từng service trong `backend/<service>/` đọc file `consul-kv.yml` và đẩy lên Consul KV.
 4. Tự sinh `config/services.env`, `docker-compose.yml`, `config/nginx/default.conf.template`, cập nhật DNS và Webhook.
+4. Tự sinh `.generated/services.env`, `docker-compose.yml`, `config/nginx/default.conf.template`, cập nhật DNS và Webhook.
 5. Tự build Docker Image qua Maven Jib cho từng service.
 6. Chạy `docker compose up -d --remove-orphans` và restart Nginx.
 

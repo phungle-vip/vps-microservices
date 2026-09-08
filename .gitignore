@@ -47,3 +47,9 @@ nginx/conf.d/default.conf
 # Cloudflare Tunnel credentials
 **/cloudflared/*.json
 !**/cloudflared/*.example
+
+# Auto-generated configs & runtime artifacts
+config/services.env
+.generated/
+config/webhook/triggers/*
+!config/webhook/triggers/.gitkeep

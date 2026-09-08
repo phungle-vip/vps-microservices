@@ -1,0 +1,40 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: ${LOKI_URL:-http://host.docker.internal:3100}/loki/api/v1/push
+
+scrape_configs:
+  - job_name: vps-microservices-docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+    relabel_configs:
+      # Strip leading slash from container name
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/?(.*)'
+        target_label: container_name
+      - source_labels: ['__meta_docker_container_image']
+        target_label: image
+      - source_labels: ['__meta_docker_container_id']
+        target_label: container_id
+      # Filter: only keep microservices containers when running on shared docker host
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project', '__meta_docker_container_name']
+        regex: 'vps-microservices;.*|.*;/?(vps-microservices.*|ms-.*|ms_.*|gateway.*)'
+        action: keep
+      - target_label: vps
+        replacement: vps-microservices
+      - target_label: cluster
+        replacement: microservices
+      - target_label: job
+        replacement: vps-microservices-docker
+    pipeline_stages:
+      - docker: {}
+      - regex:
+          expression: '(?i)(?P<level>DEBUG|INFO|WARN|WARNING|ERROR|FATAL)'
+      - labels:
+          level:
+

@@ -4,7 +4,7 @@
 # ==============================================================================
 
 # Thay YOUR_TUNNEL_ID bằng UUID của Tunnel 2 (ví dụ: c4a2b1d3-...)
-tunnel: YOUR_TUNNEL_ID
+tunnel: d439fa52-c36d-4219-9982-e2e1ac7ecc18
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:

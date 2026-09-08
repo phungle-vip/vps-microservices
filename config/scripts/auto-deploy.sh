@@ -200,7 +200,12 @@ if [ "$CONFIG_ONLY" = true ]; then
 fi
 
 # Đọc lại file services.env vừa sinh
-if [ -f "$CONFIG_DIR/services.env" ]; then
+if [ -f "$MICROSERVICES_DIR/.generated/services.env" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$MICROSERVICES_DIR/.generated/services.env"
+  set +a
+elif [ -f "$CONFIG_DIR/services.env" ]; then
   set -a
   # shellcheck disable=SC1090
   source "$CONFIG_DIR/services.env"

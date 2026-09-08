@@ -6,31 +6,12 @@ DOCKER="http://docker_api:2375"
 TARGET="${1:-}"
 [ -z "$TARGET" ] && { echo "missing target"; exit 1; }
 
-# Map target -> service list (compose service names)
-# and -> database name that should be dropped & recreated
-case "$TARGET" in
-  ms_user)      SVCS_APP="ms_user";      SVC_DB="ms_user-mysql";      DBNAME="ms_user" ;;
-  ms_route)     SVCS_APP="ms_route";     SVC_DB="ms_route-mysql";     DBNAME="ms_route" ;;
-  ms_booking)   SVCS_APP="ms_booking";   SVC_DB="ms_booking-mysql";   DBNAME="ms_booking" ;;
-  ms_promotion) SVCS_APP="ms_promotion"; SVC_DB="ms_promotion-mysql"; DBNAME="ms_promotion" ;;
-  gateway)      SVCS_APP="gateway";      SVC_DB="";                   DBNAME="" ;;
-  all)
-    # For 'all', we’ll process each group sequentially
-    for t in ms_user ms_route ms_booking ms_promotion gateway; do
-      "$0" "$t" || true
-    done
-    echo "ok"
-    exit 0
-    ;;
-  *) echo "unknown target: $TARGET"; exit 2 ;;
-esac
-
 # --- Helpers ---
 
 # Try to detect compose project for better lookups
 detect_project() {
   PROJ=$(
-    curl -fsS "${DOCKER}/containers/json?filters=%7B%22name%22%3A%5B%22restarter%22%5D%7D" \
+    curl -fsS "${DOCKER}/containers/json?filters=%7B%22name%22%3A%5B%22restarter%22%5D%7D" 2>/dev/null \
     | tr -d '\n' \
     | sed -n 's/.*"com\.docker\.compose\.project":"\([^"]*\)".*/\1/p' \
     | head -n1
@@ -48,11 +29,57 @@ find_id_by_service() {
   else
     FILTER="%7B%22label%22%3A%5B%22com.docker.compose.service%3D${svc}%22%5D%7D"
   fi
-  curl -fsS "${DOCKER}/containers/json?all=1&filters=${FILTER}" \
+  curl -fsS "${DOCKER}/containers/json?all=1&filters=${FILTER}" 2>/dev/null \
   | tr -d '\n' \
   | sed -n 's/.*"Id":"\([a-f0-9]\{12,64\}\)".*/\1/p' \
   | head -n1
 }
+
+# --- Dynamic Target Resolution (Zero Hardcode) ---
+if [ "$TARGET" = "all" ]; then
+  # Discover all app services dynamically in the compose project
+  FILTER=""
+  if [ -n "$PROJECT" ]; then
+    FILTER="%7B%22label%22%3A%5B%22com.docker.compose.project%3D${PROJECT}%22%5D%7D"
+  fi
+  SERVICES=$(
+    curl -fsS "${DOCKER}/containers/json?all=1${FILTER:+&filters=$FILTER}" 2>/dev/null \
+    | tr -d '\n' \
+    | sed 's/{"Id"/\n{"Id"/g' \
+    | sed -n 's/.*"com\.docker\.compose\.service":"\([^"]*\)".*/\1/p' \
+    | grep -v -E '(-mysql$|^restarter$|^autoheal$|^cloudflared$|^docker_api$|^nginx$)' \
+    | sort -u || true
+  )
+  if [ -z "$SERVICES" ]; then
+    echo "✗ No microservices found to restart"
+    exit 1
+  fi
+  for t in $SERVICES; do
+    "$0" "$t" || true
+  done
+  echo "ok"
+  exit 0
+elif [ "$TARGET" = "gateway" ]; then
+  SVCS_APP="gateway"
+  SVC_DB=""
+  DBNAME=""
+else
+  # Check if target container exists
+  target_id="$(find_id_by_service "$TARGET")"
+  if [ -z "$target_id" ]; then
+    echo "unknown target: $TARGET"
+    exit 2
+  fi
+  SVCS_APP="$TARGET"
+  # Dynamically check if a database container exists for this service (e.g. <target>-mysql)
+  if [ -n "$(find_id_by_service "${TARGET}-mysql")" ]; then
+    SVC_DB="${TARGET}-mysql"
+    DBNAME="${TARGET}"
+  else
+    SVC_DB=""
+    DBNAME=""
+  fi
+fi
 
 restart_container_by_id() {
   id="$1"
