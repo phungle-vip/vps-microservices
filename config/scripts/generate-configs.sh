@@ -678,7 +678,8 @@ cat << 'EOF' >> "$COMPOSE_FILE"
     networks: [ ticket_net ]
     environment:
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
-    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    command: tunnel --metrics 0.0.0.0:2000 --config /etc/cloudflared/config.yml --no-autoupdate run
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/cloudflared:/etc/cloudflared:ro

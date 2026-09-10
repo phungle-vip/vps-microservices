@@ -43,10 +43,8 @@ fi
 
 # Nạp file services.env nếu có (chứa cấu hình dynamic service names & subdomains)
 SERVICES_ENV="$MICROSERVICES_DIR/config/services.env"
-if [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/services.env" ]; then
-SERVICES_ENV="$MICROSERVICES_DIR/.generated/services.env"
-if [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/config/services.env" ]; then
-  SERVICES_ENV="$MICROSERVICES_DIR/config/services.env"
+if [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/.generated/services.env" ]; then
+  SERVICES_ENV="$MICROSERVICES_DIR/.generated/services.env"
 elif [ ! -f "$SERVICES_ENV" ] && [ -f "$MICROSERVICES_DIR/services.env" ]; then
   SERVICES_ENV="$MICROSERVICES_DIR/services.env"
 fi
@@ -102,20 +100,21 @@ fi
 
 echo -e "${GREEN}✓ Tunnel ID: ${TUNNEL_ID}${NC}"
 
-# 3. Sao chép file credentials vào cloudflared/credentials.json
-echo -e "\n${BLUE}[2/5] Sao chép file credentials...${NC}"
-SOURCE_CREDS="$HOME/.cloudflared/${TUNNEL_ID}.json"
+# 3. Lấy Tunnel Token và lưu vào .env (Token-Based / Cloud-Managed)
+echo -e "\n${BLUE}[2/5] Trích xuất TUNNEL_TOKEN vào file .env...${NC}"
+TOKEN_OUTPUT=$(cloudflared tunnel token "$TUNNEL_NAME" 2>/dev/null || true)
 
-if [ -f "$SOURCE_CREDS" ]; then
-  mkdir -p "$CLOUDFLARED_DIR"
-  cp "$SOURCE_CREDS" "$CREDS_TARGET"
-  chmod 644 "$CREDS_TARGET"
-  echo -e "${GREEN}✓ Đã lưu file credentials tại: ${CREDS_TARGET}${NC}"
-elif [ -f "$CREDS_TARGET" ]; then
-  echo -e "${YELLOW}ℹ Sử dụng file credentials hiện có tại: ${CREDS_TARGET}${NC}"
+if [ -n "$TOKEN_OUTPUT" ]; then
+  if [ -f "$ENV_FILE" ]; then
+    if grep -q "^TUNNEL_TOKEN=" "$ENV_FILE"; then
+      sed -i -E "s|^TUNNEL_TOKEN=.*|TUNNEL_TOKEN=${TOKEN_OUTPUT}|" "$ENV_FILE"
+    else
+      echo "TUNNEL_TOKEN=${TOKEN_OUTPUT}" >> "$ENV_FILE"
+    fi
+    echo -e "${GREEN}✓ Đã cập nhật TUNNEL_TOKEN vào ${ENV_FILE}${NC}"
+  fi
 else
-  echo -e "${RED}❌ Không tìm thấy file credentials tại: $SOURCE_CREDS${NC}"
-  exit 1
+  echo -e "${YELLOW}ℹ Không trích xuất được token tự động, tiếp tục với file config cục bộ.${NC}"
 fi
 
 # 4. Cập nhật Tunnel ID vào file config.yml
@@ -163,13 +162,15 @@ for sub in "${SUBDOMAINS[@]}"; do
   fi
 done
 
-# 6. Tự động cấu hình Cloudflare Access Bypass IP cho VPS Microservices (để gọi Consul & Vault)
-echo -e "\n${BLUE}[5/5] Cập nhật Cloudflare Access Bypass IP cho VPS Microservices...${NC}"
-BYPASS_SCRIPT="$SCRIPT_DIR/update-access-bypass.sh"
-if [ -f "$BYPASS_SCRIPT" ]; then
-  bash "$BYPASS_SCRIPT" || echo -e "${YELLOW}⚠️ Cập nhật Bypass IP không thành công. Bạn có thể chạy lại: ${BYPASS_SCRIPT}${NC}"
+# 6. Đăng ký Private Network (Layer 4) cho Docker Subnet
+echo -e "\n${BLUE}[5/5] Cấu hình Private Network Routing cho mạng nội bộ...${NC}"
+MS_SUBNET=$(docker network inspect ridehub-ms-network 2>/dev/null | grep -o '"Subnet": "[^"]*' | cut -d'"' -f4 | head -n1 || true)
+if [ -n "$MS_SUBNET" ]; then
+  echo "-> Đăng ký subnet [${MS_SUBNET}] vào Tunnel '${TUNNEL_NAME}'..."
+  cloudflared tunnel route ip add "$MS_SUBNET" "$TUNNEL_NAME" >/dev/null 2>&1 || echo -e "${YELLOW}ℹ Route IP đã tồn tại hoặc đã được đăng ký.${NC}"
+  echo -e "${GREEN}✓ Hoàn tất cấu hình Layer 4 Private Network.${NC}"
 else
-  echo -e "${YELLOW}ℹ Bỏ qua (không tìm thấy update-access-bypass.sh)${NC}"
+  echo -e "${YELLOW}ℹ Mạng Docker 'ridehub-ms-network' chưa khởi tạo, bỏ qua đăng ký Private Route (sẽ tự nhận khi chạy docker compose).${NC}"
 fi
 
 echo -e "\n${GREEN}====================================================================${NC}"

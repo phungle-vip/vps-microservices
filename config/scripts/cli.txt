@@ -2,21 +2,17 @@
 # HƯỚNG DẪN KHỞI CHẠY VPS-MICROSERVICES VỚI CLOUDFLARE TUNNEL (FILE CONFIG.YML)
 # ==============================================================================
 
-# Cách 1: Tự động chạy toàn bộ Bước 1 -> Bước 4 chỉ bằng 1 lệnh:
+# Cách 1 (Khuyên dùng): Tự động tạo Tunnel, lưu TUNNEL_TOKEN vào .env, trỏ DNS & Private Network:
 #    ./config/cloudflared/setup-tunnel.sh
 #
 # Cách 2: Thực hiện thủ công:
 # 1. Cài đặt cloudflared CLI (nếu chưa có) và đăng nhập tài khoản Cloudflare:
 #    cloudflared tunnel login
-#    (Lệnh này sẽ mở trình duyệt để bạn chọn domain phungvip.io.vn)
 # 
 # 2. Tạo Tunnel mới (đặt tên ví dụ: ridehub-ms-tunnel):
 #    cloudflared tunnel create ridehub-ms-tunnel
-#    -> Lệnh này sẽ hiển thị Tunnel ID (UUID) và sinh file ~/.cloudflared/<TUNNEL_ID>.json
-# 
-# 3. Copy file credentials vào thư mục cloudflared:
-#    cp ~/.cloudflared/<TUNNEL_ID>.json ./config/cloudflared/credentials.json
-#    -> Mở file ./config/cloudflared/config.yml và điền TUNNEL_ID của bạn vào dòng "tunnel: YOUR_TUNNEL_ID"
+#    -> Lấy TUNNEL_TOKEN nạp vào file .env:
+#    echo "TUNNEL_TOKEN=$(cloudflared tunnel token ridehub-ms-tunnel)" >> .env
 
 # 4. Định tuyến DNS trên Cloudflare trỏ về Tunnel (chạy 1 lần):
 #    cloudflared tunnel route dns ridehub-ms-tunnel "*.phungvip.io.vn"
