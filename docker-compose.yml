@@ -88,7 +88,7 @@ services:
     restart: unless-stopped
     networks: [ ticket_net ]
     environment:
-      ADMIN_TOKEN: \${ADMIN_TOKEN:-f4security}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     volumes:
       - /etc/localtime:/etc/localtime:ro

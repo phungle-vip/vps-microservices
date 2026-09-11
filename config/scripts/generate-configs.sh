@@ -467,13 +467,13 @@ x-common-variables: &common-variables
   SPRING_PROFILES_ACTIVE: \${SPRING_PROFILES_ACTIVE:-prod,api-docs}
   JAVA_OPTIONS: \${JAVA_OPTIONS:-"-Xmx512m -Xms256m -Duser.timezone=Asia/Ho_Chi_Minh"}
   TZ: \${TZ:-Asia/Ho_Chi_Minh}
-  F4_PASSWORD: \${APP_F4_PASS:-\${F4_PASSWORD:-f4security}}
-  VAULT_TOKEN: \${VAULT_TOKEN:-f4security}
-  SPRING_CLOUD_VAULT_TOKEN: \${VAULT_TOKEN:-f4security}
+  F4_PASSWORD: \${APP_F4_PASS:?APP_F4_PASS is required}
+  VAULT_TOKEN: \${VAULT_TOKEN:?VAULT_TOKEN is required}
+  SPRING_CLOUD_VAULT_TOKEN: \${VAULT_TOKEN:?VAULT_TOKEN is required}
   DOMAIN: ${DOMAIN}
   REDIS_HOST: \${REDIS_HOST:-host.docker.internal}
   REDIS_PORT: \${REDIS_PORT:-6379}
-  REDIS_PASSWORD: \${REDIS_PASSWORD:-f4security}
+  REDIS_PASSWORD: \${REDIS_PASSWORD:?REDIS_PASSWORD is required}
   KAFKA_BROKERS: \${KAFKA_BROKERS:-kafka.${DOMAIN}:9093}
   ELASTICSEARCH_URIS: \${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
   SPRING_CLOUD_CONSUL_HOST: \${CONSUL_HOST:-consul.${DOMAIN}}
@@ -486,9 +486,9 @@ x-common-variables: &common-variables
   MANAGEMENT_HEALTH_CONSUL_ENABLED: \${CONSUL_HEALTH_ENABLED:-true}
 
   SPRING_DATASOURCE_USERNAME: root
-  SPRING_DATASOURCE_PASSWORD: \${MYSQL_ROOT_PASSWORD:-f4security}
+  SPRING_DATASOURCE_PASSWORD: \${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
   SPRING_LIQUIBASE_USER: root
-  SPRING_LIQUIBASE_PASSWORD: \${MYSQL_ROOT_PASSWORD:-f4security}
+  SPRING_LIQUIBASE_PASSWORD: \${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
 
 x-common-extra-hosts: &common-extra-hosts
   - "host.docker.internal:host-gateway"
@@ -532,9 +532,9 @@ cat << EOF >> "$SERVICES_COMPOSE_FILE"
       SERVER_NAME: \${GATEWAY_SERVER_NAME:-apigateway}
       SERVER_PORT: \${GATEWAY_PORT:-8080}
       SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: \${GATEWAY_DISCOVERY_ADDRESS:-apigateway.${DOMAIN}}
-      CONSUL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:-\${CONSUL_TOKEN:-\${F4_PASSWORD:-f4security}}}
-      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:-\${CONSUL_TOKEN:-\${F4_PASSWORD:-f4security}}}
-      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:-\${CONSUL_TOKEN:-\${F4_PASSWORD:-f4security}}}
+      CONSUL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:?CONSUL_TOKEN_APIGATEWAY is required}
+      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:?CONSUL_TOKEN_APIGATEWAY is required}
+      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:?CONSUL_TOKEN_APIGATEWAY is required}
     ports: [ "\${GATEWAY_PORT:-8080}:8080" ]
     healthcheck:
       test: [ "CMD", "curl", "-fsS", "http://localhost:\${GATEWAY_PORT:-8080}/management/health" ]
@@ -575,9 +575,9 @@ for svc in "${DISCOVERED_SERVICES[@]}"; do
       <<: *common-variables
       SERVER_NAME: \${${svc_upper}_SERVER_NAME:-${clean_name}}
       SERVER_PORT: \${${svc_upper}_PORT:-${SVC_PORT[$svc]}}
-      CONSUL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:-\${CONSUL_TOKEN:-\${F4_PASSWORD:-f4security}}}
-      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:-\${CONSUL_TOKEN:-\${F4_PASSWORD:-f4security}}}
-      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:-\${CONSUL_TOKEN:-\${F4_PASSWORD:-f4security}}}
+      CONSUL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:?CONSUL_TOKEN_${clean_upper} is required}
+      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:?CONSUL_TOKEN_${clean_upper} is required}
+      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:?CONSUL_TOKEN_${clean_upper} is required}
       SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: "true"
       SPRING_CLOUD_CONSUL_DISCOVERY_HOSTNAME: \${${svc_upper}_DISCOVERY_HOSTNAME:-${clean_name}.${DOMAIN}}
       SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: \${${svc_upper}_DISCOVERY_ADDRESS:-${clean_name}.${DOMAIN}}
@@ -708,7 +708,7 @@ cat << 'EOF' >> "$COMPOSE_FILE"
     restart: unless-stopped
     networks: [ ticket_net ]
     environment:
-      ADMIN_TOKEN: \${ADMIN_TOKEN:-f4security}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     volumes:
       - /etc/localtime:/etc/localtime:ro
