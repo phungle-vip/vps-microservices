@@ -430,11 +430,11 @@ echo -e "${GREEN}✓ Đã cập nhật nginx/default.conf.template thành công.
 
 # 5. Sinh file cấu hình microservices: .generated/docker-compose.services.yml
 echo -e "\n${BLUE}[4/6] Đang sinh file cấu hình microservices: ${GREEN}${SERVICES_COMPOSE_FILE}${NC}..."
-cat << 'EOF' > "$SERVICES_COMPOSE_FILE"
+cat << EOF > "$SERVICES_COMPOSE_FILE"
 # ===== Common anchors =====
 x-mysql-env: &mysql_env
-  MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-${APP_F4_PASS}}
-  TZ: ${TZ:-Asia/Ho_Chi_Minh}
+  MYSQL_ROOT_PASSWORD: \${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+  TZ: \${TZ:-Asia/Ho_Chi_Minh}
 
 x-mysql-common: &mysql_common
   image: mysql:8.4
@@ -455,7 +455,7 @@ x-mysql-common: &mysql_common
   volumes:
     - /etc/localtime:/etc/localtime:ro
   healthcheck:
-    test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD:-$${APP_F4_PASS}}\" --silent || mysqladmin ping -h 127.0.0.1 -uroot --silent" ]
+    test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"\$\$MYSQL_ROOT_PASSWORD\" --silent || mysqladmin ping -h 127.0.0.1 -uroot --silent" ]
     interval: 5s
     timeout: 5s
     retries: 20
@@ -464,31 +464,31 @@ x-mysql-common: &mysql_common
     autoheal: "true"
 
 x-common-variables: &common-variables
-  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod,api-docs}
-  JAVA_OPTIONS: ${JAVA_OPTIONS:-"-Xmx512m -Xms256m -Duser.timezone=Asia/Ho_Chi_Minh"}
-  TZ: ${TZ:-Asia/Ho_Chi_Minh}
-  F4_PASSWORD: ${APP_F4_PASS}
-  VAULT_TOKEN: ${VAULT_TOKEN:-${APP_F4_PASS}}
-  SPRING_CLOUD_VAULT_TOKEN: ${VAULT_TOKEN:-${APP_F4_PASS}}
+  SPRING_PROFILES_ACTIVE: \${SPRING_PROFILES_ACTIVE:-prod,api-docs}
+  JAVA_OPTIONS: \${JAVA_OPTIONS:-"-Xmx512m -Xms256m -Duser.timezone=Asia/Ho_Chi_Minh"}
+  TZ: \${TZ:-Asia/Ho_Chi_Minh}
+  F4_PASSWORD: \${APP_F4_PASS:?APP_F4_PASS is required}
+  VAULT_TOKEN: \${VAULT_TOKEN:?VAULT_TOKEN is required}
+  SPRING_CLOUD_VAULT_TOKEN: \${VAULT_TOKEN:?VAULT_TOKEN is required}
   DOMAIN: ${DOMAIN}
-  REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
-  REDIS_PORT: ${REDIS_PORT:-6379}
-  REDIS_PASSWORD: ${APP_F4_PASS}
-  KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka.${DOMAIN}:9093}
-  ELASTICSEARCH_URIS: ${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
-  SPRING_CLOUD_CONSUL_HOST: ${CONSUL_HOST:-consul.${DOMAIN}}
-  SPRING_CLOUD_CONSUL_PORT: ${CONSUL_PORT:-443}
-  SPRING_CLOUD_CONSUL_SCHEME: ${CONSUL_SCHEME:-https}
-  SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: ${CONSUL_DISCOVERY_PREFER_IP_ADDRESS:-true}
-  SPRING_CLOUD_CONSUL_DISCOVERY_SCHEME: ${CONSUL_DISCOVERY_SCHEME:-https}
-  SPRING_CLOUD_CONSUL_DISCOVERY_PORT: ${CONSUL_DISCOVERY_PORT:-443}
-  CONSUL_HEALTH_ENABLED: ${CONSUL_HEALTH_ENABLED:-true}
-  MANAGEMENT_HEALTH_CONSUL_ENABLED: ${CONSUL_HEALTH_ENABLED:-true}
+  REDIS_HOST: \${REDIS_HOST:-host.docker.internal}
+  REDIS_PORT: \${REDIS_PORT:-6379}
+  REDIS_PASSWORD: \${REDIS_PASSWORD:-}
+  KAFKA_BROKERS: \${KAFKA_BROKERS:-kafka.${DOMAIN}:9093}
+  ELASTICSEARCH_URIS: \${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
+  SPRING_CLOUD_CONSUL_HOST: \${CONSUL_HOST:-consul.${DOMAIN}}
+  SPRING_CLOUD_CONSUL_PORT: \${CONSUL_PORT:-443}
+  SPRING_CLOUD_CONSUL_SCHEME: \${CONSUL_SCHEME:-https}
+  SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: \${CONSUL_DISCOVERY_PREFER_IP_ADDRESS:-true}
+  SPRING_CLOUD_CONSUL_DISCOVERY_SCHEME: \${CONSUL_DISCOVERY_SCHEME:-https}
+  SPRING_CLOUD_CONSUL_DISCOVERY_PORT: \${CONSUL_DISCOVERY_PORT:-443}
+  CONSUL_HEALTH_ENABLED: \${CONSUL_HEALTH_ENABLED:-true}
+  MANAGEMENT_HEALTH_CONSUL_ENABLED: \${CONSUL_HEALTH_ENABLED:-true}
 
   SPRING_DATASOURCE_USERNAME: root
-  SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-${APP_F4_PASS}}
+  SPRING_DATASOURCE_PASSWORD: \${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
   SPRING_LIQUIBASE_USER: root
-  SPRING_LIQUIBASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-${APP_F4_PASS}}
+  SPRING_LIQUIBASE_PASSWORD: \${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
 
 x-common-extra-hosts: &common-extra-hosts
   - "host.docker.internal:host-gateway"
@@ -521,7 +521,7 @@ EOF
 
 # Gateway Service
 if [[ " ${DISCOVERED_SERVICES[*]} " =~ " gateway " ]]; then
-cat << 'EOF' >> "$SERVICES_COMPOSE_FILE"
+cat << EOF >> "$SERVICES_COMPOSE_FILE"
   gateway:
     image: gateway
     restart: unless-stopped
@@ -529,15 +529,15 @@ cat << 'EOF' >> "$SERVICES_COMPOSE_FILE"
     extra_hosts: *common-extra-hosts
     environment:
       <<: *common-variables
-      SERVER_NAME: ${GATEWAY_SERVER_NAME:-apigateway}
-      SERVER_PORT: ${GATEWAY_PORT:-8080}
-      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: ${GATEWAY_DISCOVERY_ADDRESS:-apigateway.${DOMAIN}}
-      CONSUL_TOKEN: ${CONSUL_TOKEN_APIGATEWAY:-${APP_F4_PASS}}
-      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: ${CONSUL_TOKEN_APIGATEWAY:-${APP_F4_PASS}}
-      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: ${CONSUL_TOKEN_APIGATEWAY:-${APP_F4_PASS}}
-    ports: [ "${GATEWAY_PORT:-8080}:8080" ]
+      SERVER_NAME: \${GATEWAY_SERVER_NAME:-apigateway}
+      SERVER_PORT: \${GATEWAY_PORT:-8080}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: \${GATEWAY_DISCOVERY_ADDRESS:-apigateway.${DOMAIN}}
+      CONSUL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:?CONSUL_TOKEN_APIGATEWAY is required}
+      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:?CONSUL_TOKEN_APIGATEWAY is required}
+      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_APIGATEWAY:?CONSUL_TOKEN_APIGATEWAY is required}
+    ports: [ "\${GATEWAY_PORT:-8080}:8080" ]
     healthcheck:
-      test: [ "CMD", "curl", "-fsS", "http://localhost:${GATEWAY_PORT:-8080}/management/health" ]
+      test: [ "CMD", "curl", "-fsS", "http://localhost:\${GATEWAY_PORT:-8080}/management/health" ]
       interval: 5s
       timeout: 5s
       retries: 40
@@ -575,12 +575,12 @@ for svc in "${DISCOVERED_SERVICES[@]}"; do
       <<: *common-variables
       SERVER_NAME: \${${svc_upper}_SERVER_NAME:-${clean_name}}
       SERVER_PORT: \${${svc_upper}_PORT:-${SVC_PORT[$svc]}}
-      CONSUL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:-\${CONSUL_TOKEN_${svc_upper}:-\${APP_F4_PASS}}}
-      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:-\${CONSUL_TOKEN_${svc_upper}:-\${APP_F4_PASS}}}
-      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:-\${CONSUL_TOKEN_${svc_upper}:-\${APP_F4_PASS}}}
+      CONSUL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:?CONSUL_TOKEN_${clean_upper} is required}
+      SPRING_CLOUD_CONSUL_CONFIG_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:?CONSUL_TOKEN_${clean_upper} is required}
+      SPRING_CLOUD_CONSUL_DISCOVERY_ACL_TOKEN: \${CONSUL_TOKEN_${clean_upper}:?CONSUL_TOKEN_${clean_upper} is required}
       SPRING_CLOUD_CONSUL_DISCOVERY_PREFER_IP_ADDRESS: "true"
-      SPRING_CLOUD_CONSUL_DISCOVERY_HOSTNAME: \${${svc_upper}_DISCOVERY_HOSTNAME:-${clean_name}.\${DOMAIN}}
-      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: \${${svc_upper}_DISCOVERY_ADDRESS:-${clean_name}.\${DOMAIN}}
+      SPRING_CLOUD_CONSUL_DISCOVERY_HOSTNAME: \${${svc_upper}_DISCOVERY_HOSTNAME:-${clean_name}.${DOMAIN}}
+      SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS: \${${svc_upper}_DISCOVERY_ADDRESS:-${clean_name}.${DOMAIN}}
       SPRING_DATASOURCE_URL: jdbc:mysql://${svc}-mysql:3306/${svc}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
       SPRING_LIQUIBASE_URL: jdbc:mysql://${svc}-mysql:3306/${svc}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true&allowLoadLocalInfile=true
     ports:
@@ -708,7 +708,7 @@ cat << 'EOF' >> "$COMPOSE_FILE"
     restart: unless-stopped
     networks: [ ticket_net ]
     environment:
-      ADMIN_TOKEN: ${ADMIN_TOKEN:-${APP_F4_PASS}}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN is required}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -849,7 +849,7 @@ echo -e "\n${BLUE}[6/6] webhook/scripts/restart.sh tự động phát hiện tar
 
 # 8. Đồng bộ & Khởi tạo cấu hình Consul KV (Centralized External Configuration)
 echo -e "\n${BLUE}[6/6] Kiểm tra & Đồng bộ cấu hình Consul KV tập trung...${NC}"
-CONSUL_TOKEN="${CONSUL_TOKEN:-${APP_F4_PASS:-}}"
+CONSUL_TOKEN="${CONSUL_MASTER_TOKEN:-}"
 CONSUL_URL="https://consul.${DOMAIN}"
 CENTRAL_KV_DIR="$REPO_ROOT/infra/vps-infra/central-server-config/consul/KV"
 mkdir -p "$CENTRAL_KV_DIR"
