@@ -473,7 +473,7 @@ x-common-variables: &common-variables
   DOMAIN: ${DOMAIN}
   REDIS_HOST: \${REDIS_HOST:-host.docker.internal}
   REDIS_PORT: \${REDIS_PORT:-6379}
-  REDIS_PASSWORD: \${REDIS_PASSWORD:-}
+  REDIS_PASSWORD: \${REDIS_PASSWORD:?REDIS_PASSWORD is required}
   KAFKA_BROKERS: \${KAFKA_BROKERS:-kafka.${DOMAIN}:9093}
   ELASTICSEARCH_URIS: \${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
   SPRING_CLOUD_CONSUL_HOST: \${CONSUL_HOST:-consul.${DOMAIN}}
