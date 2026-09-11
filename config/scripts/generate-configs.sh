@@ -904,7 +904,7 @@ jhipster:
   clientApp:
     name: 'gatewayApp'
   cors:
-    allowed-origins: "http://localhost:5173,http://localhost:8100,http://localhost:9000,https://apigateway.phungvip.io.vn"
+    allowed-origins: "https://${DOMAIN},https://*.${DOMAIN},https://apigateway.${DOMAIN}"
     allowed-methods: "*"
     allowed-headers: "*"
     exposed-headers: "Authorization,Link,X-Total-Count,X-${jhipster.clientApp.name}-alert,X-${jhipster.clientApp.name}-error,X-${jhipster.clientApp.name}-params"
