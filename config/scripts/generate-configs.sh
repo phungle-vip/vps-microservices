@@ -65,7 +65,7 @@ done
 echo -e "\n${BLUE}[1/6] Đã phát hiện ${#DISCOVERED_SERVICES[@]} services:${NC} ${GREEN}${DISCOVERED_SERVICES[*]}${NC}"
 
 # Đọc file services.env hiện tại để giữ nguyên port và subdomain cũ nếu đã có
-DOMAIN="phungvip.io.vn"
+DOMAIN="${DOMAIN:-phungvip.io.vn}"
 if [ -f "$MICROSERVICES_DIR/.env" ]; then
   set -a
   source "$MICROSERVICES_DIR/.env" 2>/dev/null || true
@@ -474,7 +474,7 @@ x-common-variables: &common-variables
   REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
   REDIS_PORT: ${REDIS_PORT:-6379}
   REDIS_PASSWORD: ${APP_F4_PASS}
-  KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka.phungvip.io.vn:9093}
+  KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka.${DOMAIN}:9093}
   ELASTICSEARCH_URIS: ${ELASTICSEARCH_URIS:-http://host.docker.internal:9200}
   SPRING_CLOUD_CONSUL_HOST: ${CONSUL_HOST:-consul.${DOMAIN}}
   SPRING_CLOUD_CONSUL_PORT: ${CONSUL_PORT:-443}
@@ -492,9 +492,9 @@ x-common-variables: &common-variables
 
 x-common-extra-hosts: &common-extra-hosts
   - "host.docker.internal:host-gateway"
-  - "kafka.phungvip.io.vn:host-gateway"
-  - "redis.phungvip.io.vn:host-gateway"
-  - "phungvip.io.vn:host-gateway"
+  - "kafka.${DOMAIN}:host-gateway"
+  - "redis.${DOMAIN}:host-gateway"
+  - "${DOMAIN}:host-gateway"
 
 services:
   # ===== MySQL Databases =====
@@ -785,7 +785,7 @@ echo -e "${GREEN}✓ Đã cập nhật docker-compose.yml (root infrastructure) 
 # 5b. Tự động sinh file cấu hình Prometheus Agent: config/observability/prometheus-agent.yml
 echo -e "\n${BLUE}[4b/6] Đang sinh file cấu hình Prometheus Agent: ${GREEN}${CONFIG_DIR}/observability/prometheus-agent.yml${NC}..."
 mkdir -p "$CONFIG_DIR/observability"
-TARGET_REMOTE_WRITE_URL="${PROMETHEUS_REMOTE_WRITE_URL:-http://host.docker.internal:9090/api/v1/write}"
+TARGET_REMOTE_WRITE_URL="${PROMETHEUS_REMOTE_WRITE_URL:-https://prometheus.${DOMAIN}/api/v1/write}"
 cat << AGENT_EOF > "$CONFIG_DIR/observability/prometheus-agent.yml"
 global:
   scrape_interval: 15s
