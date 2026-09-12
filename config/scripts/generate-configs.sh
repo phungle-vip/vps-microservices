@@ -491,10 +491,10 @@ x-common-variables: &common-variables
   SPRING_LIQUIBASE_PASSWORD: \${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
 
 x-common-extra-hosts: &common-extra-hosts
-  - "host.docker.internal:host-gateway"
-  - "kafka.${DOMAIN}:host-gateway"
-  - "redis.${DOMAIN}:host-gateway"
-  - "${DOMAIN}:host-gateway"
+  - "host.docker.internal:\${INFRA_HOST_IP:-host-gateway}"
+  - "kafka.\${DOMAIN}:\${INFRA_HOST_IP:-host-gateway}"
+  - "redis.\${DOMAIN}:\${INFRA_HOST_IP:-host-gateway}"
+  - "\${DOMAIN}:\${INFRA_HOST_IP:-host-gateway}"
 
 services:
   # ===== MySQL Databases =====
